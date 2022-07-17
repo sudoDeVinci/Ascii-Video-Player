@@ -1,103 +1,104 @@
 import cv2
-from datetime import datetime
-import os
+from numba import njit
+from numba.typed import List
+from os import get_terminal_size
+import numpy as np
+import colorama
+
+colorama.init(convert = True, wrap = True, autoreset=False, strip = None)
+
+def resize_dims(frame):
+    height = get_terminal_size().lines-10
+    cmd_width = get_terminal_size().columns
+    SCALE = frame.shape[1]/frame.shape[0]
+    width = int(height*SCALE*2)
+    padding = int(cmd_width*0.20)
+    
+    #-----------------------------------------------#
+                    #Scaling#
+    #-----------------------------------------------#
+    dsize = (width,height)
+
+    return dsize, padding
+
+
+@njit
+def render(frame, padding, ASCII_CHARS):
+    
+    #-----------------------------------------------#
+                    #Image Iteration#
+    #-----------------------------------------------#
+
+
+    for row in frame:
+
+        char_row = [ASCII_CHARS[int(pixel*0.098071)] for pixel in row]
+        char_multi_row = " " * padding + "".join(char_row)
+        print(LINE_CLEAR)
+        print(LINE_UP + char_multi_row)
+
+
 
 
 #-----------------------------------------------#
-                #Set Ascii Array By Intensity#
+        #Set Ascii Array By Intensity#
 #-----------------------------------------------#
 
-
-ASCII_CHARS=["@","&","#","¤","W","M","N","£","$","%","O","X","L","/","=","+","_","!",";",":","*","~","-",",","."," "]
-ASCII_CHARS.reverse()
-
-
+ascii = ["@","&","#","¤","W","M","N","£","$","%","O","X","L","/","=","+","_","!",";",":","*","~","-",",","."," "]
+ascii.reverse()
+ASCII_CHARS = List(ascii)
 #-----------------------------------------------#
-                #Initialize Video#
+            #Initialize Video#
 #-----------------------------------------------#
-
 
 video_path = input(f"> Please specify a video file path: ")
 cap = cv2.VideoCapture(video_path)
 
-playing,frame = cap.read()
 
-frame = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
-
-
-#-----------------------------------------------#
-                #TrackBar#
-#-----------------------------------------------#
-
-
-def nothing():pass
-
-cv2.namedWindow("Playback")
-cv2.createTrackbar("Height","Playback",56,100,nothing)
-cv2.createTrackbar("Width","Playback",202,300,nothing)
-cv2.createTrackbar("FrameTimeNoProcessing","Playback",13,50,nothing)
-#cv2.createTrackbar("FrameTimeProcessing","Playback",0,10000,nothing)
 
 
 #-----------------------------------------------#
                 #Main While Loop#
 #-----------------------------------------------#
 
+LINE_UP = '\033[1A'
+LINE_CLEAR = '\x1b[2K'
 
-while playing:
+count = 0
 
-    height = cv2.getTrackbarPos("Height","Playback")
-    width = cv2.getTrackbarPos("Width","Playback")
-    frametime = cv2.getTrackbarPos("FrameTimeNoProcessing","Playback")
-    if frametime == 0:
-        frametime = 1
+while (True):
+    _, frame = cap.read()
 
-    playing,frame = cap.read()
+    if frame is not None:
+        if (count%20) == 0:
+            dsize, padding = resize_dims(frame)
 
-    #start = float(datetime.now().strftime('%f'))
-    frame = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
-
-
-    #-----------------------------------------------#
-                    #Scaling#
-    #-----------------------------------------------#
-
-
-    dsize = (width,height)
-
-    frame = cv2.resize(frame, dsize)
-    
-    
-    #-----------------------------------------------#
-                    #Image Iteration#
-    #-----------------------------------------------#
-    
-
-    
-    char_multi_row = ""
-    for row in frame:
+        frame1 = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+        frame = cv2.resize(frame1, dsize)
         
-        char_row=[]
+        render(frame, padding, ASCII_CHARS)
 
-        for pixel in row:
-            char_value = int(pixel/10.8)
-            char_row.append(ASCII_CHARS[char_value])
-        
-        char_multi_row += "".join(char_row)
-        char_multi_row += "\n"
+        cv2.imshow("Video Out",frame)
 
-    #delta = float(datetime.now().strftime('%f')) - start
-    #delta = int(delta)
-    #cv2.setTrackbarPos("FrameTimeProcessing","Playback",delta)
+        if cv2.waitKey(1) & 0xFF == ord('p'):
+            if cv2.waitKey(0) & 0xFF == ord('p'):
+                continue
+            elif cv2.waitKey(1) & 0xFF == ord('q'):
+                print((LINE_UP + '\r')*len(frame+1), end='\r')
+                break
 
-    
-    print(f"{char_multi_row}")
+        print((LINE_UP + '\r')*len(frame+1), end='\r')
 
-    cv2.imshow("Video Out",frame)
-    if cv2.waitKey(frametime) & 0xFF == ord('q'):
+        count += 1
+
+    else:
+        print((LINE_UP + '\r')*len(frame+1), end='\r')
+        print("Video Over.")
         break
 
-
+cap.release()
+cv2.destroyAllWindows()
+colorama.deinit()
 
 
 
