@@ -9,6 +9,6 @@ This works simply by matching the "pixel density" of a given ascii character to 
 
 This has no real uses but it was fun to build either way.
 
-## UPDATE (18/07/2022)
+## Update (18/07/2022)
 
 To allow for faster playback and higher image resolution in the terminal, The FileVideoStream Class of the [imutils lib](https://github.com/PyImageSearch/imutils/blob/master/imutils/video/filevideostream.py) was used to allow a Queue-Dequeue system for frames.
