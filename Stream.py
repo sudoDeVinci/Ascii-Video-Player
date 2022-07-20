@@ -24,9 +24,9 @@ THE SOFTWARE.
 
 from threading import Thread
 from sys import version_info
-from os import get_terminal_size
 import cv2
 from time import sleep
+from os import get_terminal_size
 # import the Queue class from Python 3
 if version_info >= (3, 0):
 	from queue import Queue
@@ -39,7 +39,7 @@ else:
 class FileVideoStream:
 
 
-    def __init__(self, path, queue_size=128):
+    def __init__(self, path, queue_size=64):
         # initialize the file video stream along with the boolean
         # used to indicate if the thread should be stopped or not
         self.stream = cv2.VideoCapture(path)
@@ -50,8 +50,11 @@ class FileVideoStream:
             # initialize the queue used to store frames read from
             # the video file
             self.Q = Queue(maxsize=queue_size)
+
+            # Get dsize
+            dsize, padding = self.calc_size(self.SCALE)
             # intialize thread
-            self.thread = Thread(target=self.update, args=())
+            self.thread = Thread(target=self.update, args=(dsize, padding))
             self.thread.daemon = True
             self.frames = 0
         except Exception as e:
@@ -64,7 +67,7 @@ class FileVideoStream:
         self.stopped = False
         return self
     
-    def update(self):
+    def update(self, dsize, padding):
         # keep looping infinitely
         while True:
             # if the thread indicator variable is set, stop the
@@ -82,12 +85,20 @@ class FileVideoStream:
                 if not grabbed:
                     self.stopped = True
                     self.stream.release()
+                    break
                     
 
                 # add the frame to the queue
-                self.Q.put(frame)
+
+                ## First I want to increase contrast
+                frame = self.up_contrast(frame) 
+
+
+                frame = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+                frame = cv2.resize(frame, dsize)
+                self.Q.put((frame, padding))
             else:
-                sleep(0.1)  # Rest for 10ms, we have a full queue
+                sleep(0.05)  # Rest for 10ms, we have a full queue
 
         
 
@@ -114,3 +125,39 @@ class FileVideoStream:
         # wait until stream resources are released (producer thread might be still grabbing frame)
         self.thread.join()
 
+
+    def calc_size(self, SCALE):
+        height = get_terminal_size().lines-10
+        cmd_width = get_terminal_size().columns
+        width = int(height*SCALE*2)
+        padding = int(cmd_width*0.20)
+        
+        #-----------------------------------------------#
+                        #Scaling#
+        #-----------------------------------------------#
+        dsize = (width,height)
+
+        return dsize, padding
+    
+    def up_contrast(self, frame):
+        """
+        Code from: Jeru Luke, Answer #1 at
+        https://discuss.dizzycoding.com/how-do-i-increase-the-contrast-of-an-image-in-python-opencv/
+        """
+        #-----Converting image to LAB Color model----------------------------------- 
+        lab= cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+
+        #-----Splitting the LAB image to different channels-------------------------
+        l, a, b = cv2.split(lab)
+
+        #-----Applying CLAHE to L-channel-------------------------------------------
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+        cl = clahe.apply(l)
+
+        #-----Merge the CLAHE enhanced L-channel with the a and b channel-----------
+        limg = cv2.merge((cl,a,b))
+
+        #-----Converting image from LAB Color model to RGB model--------------------
+        final = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+
+        return final
