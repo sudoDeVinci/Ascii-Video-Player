@@ -98,7 +98,7 @@ class FileVideoStream:
                 frame = cv2.resize(frame, dsize)
                 self.Q.put((frame, padding))
             else:
-                sleep(0.05)  # Rest for 10ms, we have a full queue
+                break
 
         
 
@@ -127,10 +127,10 @@ class FileVideoStream:
 
 
     def calc_size(self, SCALE):
-        height = get_terminal_size().lines-10
+        height = int(get_terminal_size().lines*0.9)
         cmd_width = get_terminal_size().columns
-        width = int(height*SCALE*2)
-        padding = int(cmd_width*0.20)
+        width = int(height*SCALE*1.5)
+        padding = int(cmd_width*0.2)
         
         #-----------------------------------------------#
                         #Scaling#

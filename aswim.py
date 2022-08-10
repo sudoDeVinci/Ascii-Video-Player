@@ -40,7 +40,7 @@ Ascii =   ("@","&","#","¤","M","N","£","$","%","O","X","L","|","/","=","!",";"
 ASCII = Ascii[::-1]
 color_const = (len(ASCII)-1)/255
 
-size = 640
+size = 1000
 video_path = input(f"> Please specify a video file path: ")
 fvs = FileVideoStream(video_path, queue_size=size).start()
 while(not fvs.Q.full() and not fvs.stopped):
