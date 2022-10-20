@@ -9,6 +9,7 @@ This works simply by matching the "pixel density" of a given ascii character to 
 
 This has no real uses but it was fun to build either way.
 
+
 ## Update (18/07/2022)
 
 I removed the ability to resize via trackbars, opting to replace it with the ability of the video to automatically resize itself to the current window dimensions.
@@ -20,3 +21,8 @@ Rather than simply dumping the output of the current frame into the terminal, th
 An example can be seen below:
 
 ![example raster](media/example.gif "example raster")
+
+
+# Update [Architectural Changes] (04/09/2022)
+
+

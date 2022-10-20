@@ -1,0 +1,1 @@
+sum(word)*(len(word-1)/len(hashtable))

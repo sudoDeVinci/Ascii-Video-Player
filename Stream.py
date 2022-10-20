@@ -23,6 +23,8 @@ THE SOFTWARE.
 """
 
 from threading import Thread
+#from multiprocessing import Process
+
 from sys import version_info
 import cv2
 from time import sleep
@@ -50,6 +52,7 @@ class FileVideoStream:
             # initialize the queue used to store frames read from
             # the video file
             self.Q = Queue(maxsize=queue_size)
+            self.buffer= Queue(maxsize=queue_size)
 
             # Get dsize
             dsize, padding = self.calc_size(self.SCALE)
@@ -61,12 +64,14 @@ class FileVideoStream:
             print(e)
             self.stopped = True
 
+
     def start(self):
         # start a thread to read frames from the file video stream
         self.thread.start()
         self.stopped = False
         return self
     
+
     def update(self, dsize, padding):
         # keep looping infinitely
         while True:
@@ -91,8 +96,7 @@ class FileVideoStream:
                 # add the frame to the queue
 
                 ## First I want to increase contrast
-                frame = self.up_contrast(frame) 
-
+                #frame = self.up_contrast(frame) 
 
                 frame = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
                 frame = cv2.resize(frame, dsize)
@@ -100,24 +104,24 @@ class FileVideoStream:
             else:
                 break
 
-        
 
-    
     def read(self):
         # return next frame in the queue
         return self.Q.get()
 
+
     def running(self):
         return self.more() or not self.stopped
+
 
     def more(self):
         # return True if there are still frames in the queue. If stream is not stopped, try to wait a moment
         tries = 0
         while self.Q.qsize() == 0 and not self.stopped and tries < 5:
-            sleep(0.1)
             tries += 1
 
         return self.Q.qsize() > 0
+
 
     def stop(self):
         # indicate that the thread should be stopped
@@ -138,7 +142,7 @@ class FileVideoStream:
         dsize = (width,height)
 
         return dsize, padding
-    
+
     def up_contrast(self, frame):
         """
         Code from: Jeru Luke, Answer #1 at
