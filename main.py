@@ -41,6 +41,14 @@ def main():
     stream = VideoCapture(video_path)
     grabbed, frame = stream.read()
 
+    # Attempt to get the number of frames in our video
+    # Unsure for now what to do without total number so we handle it
+    try:
+        total_frames = int(stream.get(CAP_PROP_FRAME_COUNT))
+    except Exception:
+        total_frames = None
+
+
     # If first frame read, scale to the current terminal window size.
     if grabbed:
         SCALE = frame.shape[1]/frame.shape[0]
@@ -55,12 +63,6 @@ def main():
         dsize = (width, height)
         frames = 0
 
-        # Attempt to get the number of frames in our video
-        # Unsure for now what to do without total number so we handle it
-        try:
-            total_frames = int(stream.get(CAP_PROP_FRAME_COUNT))
-        except Exception:
-            total_frames = None
 
     # Start timer for benchmark
     start = datetime.now()
