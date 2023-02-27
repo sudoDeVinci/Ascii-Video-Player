@@ -98,7 +98,7 @@ if __name__ == "__main__":
     video_path = input("> Please specify a video file path: ")
 
     # Video frame queue
-    queue = Queue(maxsize=1000)
+    queue = Queue(maxsize=5000)
 
     # Producer process
     producer = Process(target=read_frames, args=(video_path, queue,))
