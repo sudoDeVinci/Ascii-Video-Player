@@ -1,52 +1,38 @@
+from multiprocessing import Queue, Process
 from datetime import datetime
 from os import get_terminal_size, system
 from platform import platform
 
-from cv2 import (CAP_PROP_FRAME_COUNT, COLOR_BGR2GRAY, VideoCapture, cvtColor,
-                 resize)
+from cv2 import COLOR_BGR2GRAY, VideoCapture, cvtColor, resize
 
 
-def main():
-    # Check if on windows or unix system
+
+# ANSI chars used for cursor movement for rendering
+LINE_UP = '\033[1A'
+LINE_CLEAR = '\x1b[2K'
+
+# The ascii characters used to render our video in terminal
+Ascii = ("@", "&", "#", "¤", "M", "N", "£",
+            "$", "%", "O", "X", "L", "|", "/",
+            "=", "!", ";", ":", "*", "~", "-",
+            ",", ".", " ")
+
+# Ascii = '@&#¤MN£$%OXL|/=!;:*~-,. '
+ASCII = Ascii[::-1]
+color_const = (len(ASCII)-1)/255
+
+
+
+def read_frames(video_path: str, queue: Queue):
     try:
-        current_os = platform().system()
+        # Attempt reading first frame
+        stream = VideoCapture(video_path)
+        #stream = VideoCapture(0)
+        grabbed, frame = stream.read()
     except Exception:
-        current_os = "N/A"
-
-    # If current OS is windows, call system() to allow for ansi codes to work.
-    # NO clue why this works but found here:
-    # https://stackoverflow.com/questions/12492810/python-how-can-i-make-the-ansi-escape-codes-to-work-also-in-windows
-
-    if current_os.lower().__contains__("windows"):
-        system("")
-
-    # ANSI chars used for cursor movement for rendering
-    LINE_UP = '\033[1A'
-    LINE_CLEAR = '\x1b[2K'
-
-    # The ascii characters used to render our video in terminal
-    Ascii = ("@", "&", "#", "¤", "M", "N", "£",
-             "$", "%", "O", "X", "L", "|", "/",
-             "=", "!", ";", ":", "*", "~", "-",
-             ",", ".", " ")
-
-    # Ascii = '@&#¤MN£$%OXL|/=!;:*~-,. '
-    ASCII = Ascii[::-1]
-    color_const = (len(ASCII)-1)/255
-
-    # Take media path for video included file extension
-    video_path = input("> Please specify a video file path: ")
-
-    # Attempt reading first frame
-    stream = VideoCapture(video_path)
-    grabbed, frame = stream.read()
-
-    # Attempt to get the number of frames in our video
-    # Unsure for now what to do without total number so we handle it
-    try:
-        total_frames = int(stream.get(CAP_PROP_FRAME_COUNT))
-    except Exception:
-        total_frames = None
+        print("Exception reading video stream")
+        queue.put((None, None, None))
+        return None
 
 
     # If first frame read, scale to the current terminal window size.
@@ -61,32 +47,66 @@ def main():
         padding = " " * int(cmd_width*0.2)
 
         dsize = (width, height)
-        frames = 0
-
-
-    # Start timer for benchmark
-    start = datetime.now()
 
     while grabbed:
         frame = resize(frame, dsize)
         frame = cvtColor(frame, COLOR_BGR2GRAY)
-
-        whole_ascii_frame = (''.join((ASCII[int((pixel*color_const))] for pixel in row)) for row in frame)
-        for ascii_row in whole_ascii_frame:
-            print(f"{LINE_CLEAR} {padding}{ascii_row}")
-
-        print(f"{LINE_UP} \r"*len(frame), end='\r')
-        frames += 1
+        
+        whole_ascii_frame = [''.join((ASCII[int((pixel*color_const))] for pixel in row)) for row in frame]
+        queue.put((len(frame), padding, whole_ascii_frame))
 
         grabbed, frame = stream.read()
+    
+    stream.release()
+    
+    queue.put((None, None, None))
 
-    # End benchmark timer
-    end = datetime.now()
+def draw_frames(queue: Queue):
+    while True:
+        # get frame from queue
+        frame_length, padding, whole_ascii_frame = queue.get()
 
-    frame_count = f"Frames: {frames}/{total_frames}"
-    time_s = f"Time: {end -  start}"
-    print(f" \n {LINE_CLEAR} {frame_count} {time_s}")
+        if frame_length is None:
+            break
+
+        for ascii_row in whole_ascii_frame:
+            print(f"{LINE_CLEAR} {padding}{ascii_row}", flush=True)
+        print(f"{LINE_UP} \r"*frame_length, end='\r', flush=True)
 
 
 if __name__ == "__main__":
-    main()
+     # Check if on windows or unix system
+    try:
+        current_os = platform().system()
+    except Exception:
+        current_os = "N/A"
+
+    # If current OS is windows, call system() to allow for ansi codes to work.
+    # NO clue why this works but found here:
+    # https://stackoverflow.com/questions/12492810/python-how-can-i-make-the-ansi-escape-codes-to-work-also-in-windows
+
+    if current_os.lower().__contains__("windows"):
+        system("")
+        from colorama import just_fix_windows_console_colors
+        just_fix_windows_console_colors()
+
+
+    # Take media path for video included file extension
+    video_path = input("> Please specify a video file path: ")
+
+    # Video frame queue
+    queue = Queue(maxsize=1000)
+
+    # Producer process
+    producer = Process(target=read_frames, args=(video_path, queue,))
+    producer.start()
+
+    # Consumer process
+    consumer = Process(target=draw_frames, args=(queue,))
+    consumer.start()
+    
+
+    producer.join()
+    consumer.join()
+    
+
