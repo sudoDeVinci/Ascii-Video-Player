@@ -2,8 +2,10 @@ from multiprocessing import Queue, Process
 from datetime import datetime
 from os import get_terminal_size, system
 from platform import platform
+from time import sleep
 
 from cv2 import COLOR_BGR2GRAY, VideoCapture, cvtColor, resize
+
 
 
 
@@ -62,6 +64,7 @@ def read_frames(video_path: str, queue: Queue):
     queue.put((None, None, None))
 
 def draw_frames(queue: Queue):
+    sleep(1.0)
     while True:
         # get frame from queue
         frame_length, padding, whole_ascii_frame = queue.get()
