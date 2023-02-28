@@ -1,115 +1,90 @@
-from multiprocessing import Queue, Process
-from datetime import datetime
-from os import get_terminal_size, system
-from platform import platform
-from time import sleep
+from os import walk
+from sys import exit
+from player import render
 
-from cv2 import COLOR_BGR2GRAY, VideoCapture, cvtColor, resize
+video_path = None
+media_folder_path = "media/"
 
-
-
-
-# ANSI chars used for cursor movement for rendering
-LINE_UP = '\033[1A'
-LINE_CLEAR = '\x1b[2K'
-
-# The ascii characters used to render our video in terminal
-Ascii = ("@", "&", "#", "¤", "M", "N", "£",
-            "$", "%", "O", "X", "L", "|", "/",
-            "=", "!", ";", ":", "*", "~", "-",
-            ",", ".", " ")
-
-# Ascii = '@&#¤MN£$%OXL|/=!;:*~-,. '
-ASCII = Ascii[::-1]
-color_const = (len(ASCII)-1)/255
+def stdin(prompt: str) -> None:
+    out = input(f"\n>>> {prompt}: ").strip()
+    return out
 
 
-
-def read_frames(video_path: str, queue: Queue):
-    try:
-        # Attempt reading first frame
-        stream = VideoCapture(video_path)
-        #stream = VideoCapture(0)
-        grabbed, frame = stream.read()
-    except Exception:
-        print("Exception reading video stream")
-        queue.put((None, None, None))
-        return None
-
-
-    # If first frame read, scale to the current terminal window size.
-    if grabbed:
-        SCALE = frame.shape[1]/frame.shape[0]
-        height = int(get_terminal_size().lines*0.9)
-        cmd_width = get_terminal_size().columns
-        width = int(height*SCALE*1.5)
-
-        # Padding the left and right sides of terminal to stop line overflow
-        # padding_size = int(cmd_width*0.2)
-        padding = " " * int(cmd_width*0.2)
-
-        dsize = (width, height)
-
-    while grabbed:
-        frame = resize(frame, dsize)
-        frame = cvtColor(frame, COLOR_BGR2GRAY)
-        
-        whole_ascii_frame = [''.join((ASCII[int((pixel*color_const))] for pixel in row)) for row in frame]
-        queue.put((len(frame), padding, whole_ascii_frame))
-
-        grabbed, frame = stream.read()
-    
-    stream.release()
-    
-    queue.put((None, None, None))
-
-def draw_frames(queue: Queue):
-    sleep(1.0)
+def stdin_int_bounded(prompt: str, l_bound, u_bound:int) -> int:
     while True:
-        # get frame from queue
-        frame_length, padding, whole_ascii_frame = queue.get()
+        try:
+            out = input(f"\n>> {prompt} or 'E' to exit: ").strip()
+            if out == 'E':
+                return -1
+            out = int(out)
+            if out < l_bound or out > u_bound:
+                print(f"\nPlease provide an int between {l_bound} and {u_bound}, or 'E' to exit.\n")
+                continue
+            return out
+        except ValueError as e:
+            print(f"\n{out} is not as integer.\n")
 
-        if frame_length is None:
+
+
+def get_media():
+    for _, _, files in  walk(media_folder_path):
+        return files
+
+
+def print_media(files = get_media()):
+    i = 0
+    print("\n--------- MEDIA -----------\n")
+    for file in files:
+        print(f" {[i]} {file}")
+        i += 1
+    print("\n---------------------------")
+    return len(files)
+
+
+def set_video_path(path: str|int):
+    global video_path
+    video_path = path
+
+
+def select_video():
+    global video_path
+    files = get_media()
+    i = print_media(files)
+    
+    selection = stdin_int_bounded("Select a video number", 0, i-1)
+    if selection == -1:
+        video_path = None
+    video_path = f"{media_folder_path}{files[selection]}"
+    
+
+options = (
+    ("Show media in media folder", print_media),
+    ("Play file in media folder", select_video),
+    ("Use Webcam as input", set_video_path),
+    ("Exit", exit)
+)
+
+def main():
+    global video_path
+
+    while True:
+        print("Choose an option:")
+        i = 0
+        for option in options:
+            print(f"[{i}] {option[0]}")
+            i +=1
+        selection = stdin_int_bounded("Select an option", 0, len(options)-1)
+        if selection == -1:
             break
-
-        for ascii_row in whole_ascii_frame:
-            print(f"{LINE_CLEAR} {padding}{ascii_row}", flush=True)
-        print(f"{LINE_UP} \r"*frame_length, end='\r', flush=True)
+        elif selection > 1:
+            options[selection][1](0)
+        else:
+            options[selection][1]()
+        
+        if video_path is not None:
+            render(video_path)
+            video_path = None 
 
 
 if __name__ == "__main__":
-     # Check if on windows or unix system
-    try:
-        current_os = platform().system()
-    except Exception:
-        current_os = "N/A"
-
-    # If current OS is windows, call system() to allow for ansi codes to work.
-    # NO clue why this works but found here:
-    # https://stackoverflow.com/questions/12492810/python-how-can-i-make-the-ansi-escape-codes-to-work-also-in-windows
-
-    if current_os.lower().__contains__("windows"):
-        system("")
-        from colorama import just_fix_windows_console_colors
-        just_fix_windows_console_colors()
-
-
-    # Take media path for video included file extension
-    video_path = input("> Please specify a video file path: ")
-
-    # Video frame queue
-    queue = Queue(maxsize=5000)
-
-    # Producer process
-    producer = Process(target=read_frames, args=(video_path, queue,))
-    producer.start()
-
-    # Consumer process
-    consumer = Process(target=draw_frames, args=(queue,))
-    consumer.start()
-    
-
-    producer.join()
-    consumer.join()
-    
-
+    main()
