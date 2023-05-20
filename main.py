@@ -25,7 +25,6 @@ def stdin_int_bounded(prompt: str, l_bound, u_bound:int) -> int:
             print(f"\n{out} is not as integer.\n")
 
 
-
 def get_media():
     for _, _, files in  walk(media_folder_path):
         return files

@@ -3,7 +3,7 @@ from datetime import datetime
 from os import get_terminal_size, system
 from platform import platform
 from time import sleep
-from cv2 import COLOR_BGR2GRAY, VideoCapture, cvtColor, resize
+from cv2 import COLOR_BGR2GRAY, VideoCapture, cvtColor, resize, CAP_PROP_FPS
 
 
 
@@ -47,6 +47,13 @@ def read_frames(video_path: str, queue: Queue) -> None:
         padding = " " * int(cmd_width*0.2)
 
         dsize = (width, height)
+    
+        fps = stream.get(5) #int fps
+        # width  = stream.get(3)  # float `width`
+        # height = stream.get(4)  # float `height`
+        frame_delay = 1/fps
+        dummy_frame = dummy_frame_full()
+        queue.put()
 
     while grabbed:
         frame = resize(frame, dsize)
@@ -71,10 +78,19 @@ def draw_frames(queue: Queue) -> None:
 
         if frame_length is None:
             break
-
+        
+        line = ""
         for ascii_row in whole_ascii_frame:
-            print(f"{LINE_CLEAR} {padding}{ascii_row}", flush=True)
+            #print(f"{LINE_CLEAR} {padding}{ascii_row}", flush=True)
+            line += f"{LINE_CLEAR} {padding}{ascii_row}\n"
+        print(line[:-1])
         print(f"{LINE_UP} \r"*frame_length, end='\r', flush=True)
+
+
+def dummy_frame_full(height, width) -> str:
+    symbol = ASCII[0]
+    frame = (f"{LINE_CLEAR} {symbol*width}\n" for _ in height)
+    return '/n'.join(frame)
 
 
 
@@ -96,6 +112,35 @@ def render(video_path: str) -> None:
         system("")
         from colorama import just_fix_windows_console_colors
         just_fix_windows_console_colors()
+
+    
+    #Initialize the player by checking rendering time for a single frame
+    try:
+        # Attempt reading framerate
+        stream = VideoCapture(video_path)
+        #stream = VideoCapture(0)
+        fps = stream.get(5) #int fps
+        width  = stream.get(3)  # float `width`
+        height = stream.get(4)  # float `height`
+        frame_delay = 1/fps
+
+        SCALE = frame.shape[1]/frame.shape[0]
+        height = int(get_terminal_size().lines*0.9)
+        cmd_width = get_terminal_size().columns
+        width = int(height*SCALE*1.5)
+
+        # Padding the left and right sides of terminal to stop line overflow
+        # padding_size = int(cmd_width*0.2)
+        padding = " " * int(cmd_width*0.2)
+
+        dsize = (width, height)
+
+        dummy_frame = dummy_frame_full()
+
+        
+    except Exception:
+        print("Exception reading video stream")
+        return None
 
     # Producer process
     producer = Process(target=read_frames, args=(video_path, queue,))
