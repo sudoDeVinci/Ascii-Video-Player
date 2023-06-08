@@ -40,7 +40,7 @@ def print_media(files = get_media()):
     return len(files)
 
 
-def set_video_path(path: str|int):
+def set_video_path(path: str|int = 0):
     global video_path
     video_path = path
 
