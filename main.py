@@ -25,12 +25,12 @@ def stdin_int_bounded(prompt: str, l_bound, u_bound:int) -> int:
             print(f"\n{out} is not as integer.\n")
 
 
-def get_media():
+def get_media() -> list[str]:
     for _, _, files in  walk(media_folder_path):
         return files
 
 
-def print_media(files = get_media()):
+def print_media(files = get_media()) -> int:
     i = 0
     print("\n--------- MEDIA -----------\n")
     for file in files:
@@ -40,12 +40,12 @@ def print_media(files = get_media()):
     return len(files)
 
 
-def set_video_path(path: str|int = 0):
+def set_video_path(path: str|int = 0) -> None:
     global video_path
     video_path = path
 
 
-def select_video():
+def select_video() -> None:
     global video_path
     files = get_media()
     i = print_media(files)
@@ -63,7 +63,7 @@ options = (
     ("Exit", exit)
 )
 
-def main():
+def main() -> None:
     global video_path
 
     while True:
